@@ -19,3 +19,5 @@ npm-debug.log
 
 # MacOS files
 .DS_Store
+# Jetbrains
+.idea
