@@ -6,6 +6,10 @@ import (
     "fmt"
     "runtime"
     "encoding/json"
+    "info344-in-class/zipsvr/models"
+    "strings"
+    "os"
+    "info344-in-class/zipsvr/handlers"
 )
 
 func helloHandler(w http.ResponseWriter, r *http.Request) {
@@ -25,12 +29,37 @@ func memoryHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-    //fmt.Println("Hello World!")
+    addr := os.Getenv("GO_ADDR")
+    if len(addr) == 0 {
+        addr = ":80"
+    }
+
+    zips, err := models.LoadZips("./zips.csv")
+    if err != nil {
+        log.Fatalf("error loading zips: %v", err)
+    }
+
+    log.Printf("loaded %d zips", len(zips))
+
+    cityIndex := models.ZipIndex{}
+    for _, z := range zips {
+        cityLower := strings.ToLower(z.City)
+        cityIndex[cityLower] = append(cityIndex[cityLower], z)
+    }
+
     mux := http.NewServeMux()
 
     mux.HandleFunc("/hello", helloHandler)
     mux.HandleFunc("/meme", memoryHandler)
 
-    fmt.Printf("server is litening at http://localhost:4000")
-    log.Fatal(http.ListenAndServe("localhost:4000", mux))
+    const zipsPath = "/zips/"
+    cityHandler := &handlers.CityHandler{
+        Index: cityIndex,
+        PathPrefix: zipsPath,
+    }
+
+    mux.Handle(zipsPath, cityHandler)
+
+    fmt.Printf("server is litening at http://%s", addr)
+    log.Fatal(http.ListenAndServe(addr, mux))
 }
