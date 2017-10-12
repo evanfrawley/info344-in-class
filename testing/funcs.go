@@ -29,7 +29,7 @@ func Reverse(s string) string {
     //convert string to a slice so we can manipulate it
     //since strings are immutable, this creates a copy of
     //the string so we won't be modifying the original
-    chars := []byte(s)
+    chars := []rune(s)
 
     //starting from each end, swap the values in the slice
     //elements, stopping when we get to the middle
@@ -46,7 +46,7 @@ func Reverse(s string) string {
 //"World" will be used instead
 func GetGreeting(name string) string {
 	if len(name) == 0 {
-		name := "World"
+		name = "World"
 		trace(fmt.Sprintf("defaulting name to `%s`", name))
 	}
 	return fmt.Sprintf("Hello, %s!", name)
@@ -86,9 +86,14 @@ func NewLateDays() *LateDays {
 func (ld *LateDays) Consume(netID string) int {
 	//if netID is not yet a key in the map
 	//add an entry with the value 4
-	if ld.entries[netID] == 0 {
+	if val, ok := ld.entries[netID]; ok {
+		if val == 0 {
+			return 0
+		}
+	} else {
 		ld.entries[netID] = DefaultLateDays
 	}
 	ld.entries[netID]--
+
 	return ld.entries[netID]
 }
