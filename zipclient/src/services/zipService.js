@@ -1,6 +1,6 @@
 import 'whatwg-fetch';
 
-let HOST = "http://localhost:4000";
+let HOST = "http://localhost";
 let ZIP_PATH = "/zips/";
 
 export function getZipsForCityName(cityName) {

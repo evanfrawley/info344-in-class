@@ -21,3 +21,6 @@ npm-debug.log
 .DS_Store
 # Jetbrains
 .idea
+
+# ignore TLS certs
+tls/
