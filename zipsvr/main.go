@@ -6,10 +6,10 @@ import (
     "fmt"
     "runtime"
     "encoding/json"
-    "info344-in-class/zipsvr/models"
+    "github.com/evanfrawley/info344-in-class/zipsvr/models"
     "strings"
     "os"
-    "info344-in-class/zipsvr/handlers"
+    "github.com/evanfrawley/info344-in-class/zipsvr/handlers"
 )
 
 func helloHandler(w http.ResponseWriter, r *http.Request) {

@@ -1,7 +1,7 @@
 package handlers
 
 import (
-    "info344-in-class/zipsvr/models"
+    "github.com/evanfrawley/info344-in-class/zipsvr/models"
     "net/http"
     "strings"
     "encoding/json"
