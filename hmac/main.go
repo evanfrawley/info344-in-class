@@ -4,6 +4,11 @@ import (
 	"fmt"
 	"io"
 	"os"
+    "strings"
+    "crypto/hmac"
+    "crypto/sha256"
+    "encoding/base64"
+    "crypto/subtle"
 )
 
 //usage is a helpful usage string shown when
@@ -37,13 +42,23 @@ func showUsage() {
 //signingKey and a read stream. It returns an error if
 //there was an error reading from the stream.
 func sign(signingKey string, stream io.Reader) (string, error) {
-	//TODO: implement this function according to the comments
+    key := []byte(signingKey)
+
+    //create a new HMAC hasher
+    h := hmac.New(sha256.New, key)
+
+    if _, err := io.Copy(h, stream); err != nil {
+        return "", fmt.Errorf("error copying bytes: %v", err)
+    }
+    sig := h.Sum(nil)
+
+    //TODO: implement this function according to the comments
 	//HINTS:
 	//https://drstearns.github.io/tutorials/sessions/#secdigitalsignatureswithhmac
 	//https://golang.org/pkg/crypto/hmac/
 	//https://golang.org/pkg/io/#Copy
 	//https://golang.org/pkg/encoding/base64/
-	return "", fmt.Errorf("TODO")
+	return base64.URLEncoding.EncodeToString(sig), nil
 }
 
 //verify returns true if the base64-encoded HMAC `signature`
@@ -54,7 +69,20 @@ func verify(signingKey string, signature string, stream io.Reader) (bool, error)
 	//TODO: implement this function according to the comments
 	//HINTS: (same as above plus the following)
 	//https://golang.org/pkg/crypto/subtle/#ConstantTimeCompare
-	return false, fmt.Errorf("TODO")
+    key := []byte(signingKey)
+
+    sigBytes, err := base64.URLEncoding.DecodeString(signature)
+    if err != nil {
+        return false, fmt.Errorf("decoding string failed: %v", err)
+    }
+    //create a new HMAC hasher
+    h := hmac.New(sha256.New, sigBytes)
+    if _, err := io.Copy(h, stream); err != nil {
+        return false, fmt.Errorf("copying bytes failed: %v", err)
+    }
+
+    newSig := h.Sum(nil)
+	return subtle.ConstantTimeCompare(newSig, sigBytes) == 1, nil
 }
 
 func main() {
@@ -67,5 +95,38 @@ func main() {
 	//then switch on the command
 	//and call the appropriate function above,
 	//printing the return value or error
+	command := strings.ToLower(os.Args[1])
+	signingKey := os.Args[2]
 
+
+	switch command {
+    case "sign": {
+        sig, err := sign(signingKey, os.Stdin)
+        if err != nil {
+            fmt.Printf("Error signing: %v", err)
+            os.Exit(exitCodeProcessing)
+        }
+
+        fmt.Println(sig)
+    }
+    case "verify": {
+        sig64 := os.Args[3]
+        if len(sig64) == 0 {
+            showUsage()
+        }
+
+        valid, err := verify(signingKey, sig64, os.Stdin)
+        if err != nil {
+            fmt.Printf("Error verifying: %v", err)
+            os.Exit(exitCodeProcessing)
+        }
+
+        if valid {
+            fmt.Println("Signatutre was valid!")
+        } else {
+            fmt.Println("invalid sig")
+        }
+    }
+    default: showUsage()
+    }
 }
