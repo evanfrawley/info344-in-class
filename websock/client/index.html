@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>WebScokets Demo</title>
+    <style>
+        html, body, button {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            font-size: 16px;
+        }
+        button {
+            padding: 0.5rem 1rem;
+        }
+    </style>
+</head>
+<body>
+    <h1>WebSocket Notifications</h1>
+    <p>WebSocket Status: <strong id="status"></strong> <span id="errors"></span></p>
+    <p>Open this page in multiple browser windows. Each instance will establish a WebSocket connection with the Go web server. Every time you click the following button, this page will make a request to the web server, and the web server will send a notification to all connected clients via the WebSockets. Those notifications will appear below the button.</p>
+    <div><button id="clickme">Click Me</button></div>
+    <div id="notifications"></div>
+    <script>
+        //change this if you run your server on a different port number
+        const host = "localhost:4000";
+
+        const status = document.querySelector("#status")
+        const notifications = document.querySelector("#notifications");
+        const errors = document.querySelector("#errors");
+        
+        const websocket = new WebSocket("ws://" + host + "/websockets");
+        websocket.addEventListener("error", function(err) {
+            errors.textContent = err.message;
+        });
+        websocket.addEventListener("open", function() {
+            status.textContent = "Open";
+        });
+        websocket.addEventListener("close", function() {
+            status.textContent = "Closed";
+        });
+        websocket.addEventListener("message", function(event) {
+            let p = document.createElement("p");
+            p.textContent = event.data;
+            notifications.appendChild(p);
+        });
+
+        document.querySelector("#clickme").addEventListener("click", function() {
+            fetch("http://" + host + "/notifications")
+                .catch(function(err) {
+                    alert(err.message);
+                });
+        });
+    </script>
+</body>
+</html>
