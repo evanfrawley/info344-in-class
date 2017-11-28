@@ -11,6 +11,8 @@ import (
 	"github.com/patrickmn/go-cache"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/github"
+	"fmt"
+	"io"
 )
 
 const (
@@ -59,6 +61,11 @@ func (ctx *HandlerContext) OAuthSignInHandler(w http.ResponseWriter, r *http.Req
 	// - adding it to the cache (default timeout)
 	// - redirecting the client to the authorization URL
 	//   returned from the OAuth config
+	state := newStateValue()
+	ctx.stateCache.Add(state, nil, cache.DefaultExpiration)
+	redirURL := ctx.oauthConfig.AuthCodeURL(state)
+	fmt.Printf("should be redir\n")
+	http.Redirect(w, r, redirURL, http.StatusSeeOther)
 }
 
 //OAuthReplyHandler handles requests made after authenticating
@@ -83,6 +90,47 @@ func (ctx *HandlerContext) OAuthReplyHandler(w http.ResponseWriter, r *http.Requ
 	//   behalf of the authenticated user
 	// - use that client to get the user's profile (see constants above)
 
+	qsParams := r.URL.Query()
+	if len(qsParams.Get("error")) > 0 {
+		errorDesc := qsParams.Get("error_description")
+		if len(errorDesc) == 0 {
+			errorDesc = "Error signing in: " +  qsParams.Get("error")
+		}
+		http.Error(w, fmt.Sprintf("error signing in: %v", errorDesc), http.StatusInternalServerError)
+		return
+	}
+
+	stateReturned := qsParams.Get("state")
+	if _, found := ctx.stateCache.Get(stateReturned); !found {
+		http.Error(w, "invalid request from oauth provider", http.StatusBadRequest)
+		return
+	}
+
+	// PREVENTS REPLAY ATTACKS
+	ctx.stateCache.Delete(stateReturned)
+
+	token, err := ctx.oauthConfig.Exchange(oauth2.NoContext, qsParams.Get("code"))
+	if err != nil {
+		http.Error(w, fmt.Sprintf("error getting access token: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	client := ctx.oauthConfig.Client(oauth2.NoContext, token)
+
+	profReq, _ := http.NewRequest(http.MethodGet, githubCurrentUserAPI, nil)
+	profReq.Header.Add(headerAccept, acceptGitHubV3JSON)
+	profRes, err := client.Do(profReq)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("err getting profile: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// Close body
+	defer profRes.Body.Close()
+
+	w.Header().Add(headerContentType, profRes.Header.Get(headerContentType))
+	io.Copy(w, profRes.Body)
+
 	//After obtaining the current user's profile, this is where you
 	//would typically create a new User record in your system,
 	//and begin a new authenticated Session for that user.
@@ -102,7 +150,7 @@ func main() {
 	addr := requireEnv("ADDR")
 	clientID := requireEnv("CLIENT_ID")
 	clientSecret := requireEnv("CLIENT_SECRET")
-
+	fmt.Printf("clientID: %v | client sec: %v", clientID, clientSecret)
 	ctx := &HandlerContext{
 		oauthConfig: &oauth2.Config{
 			ClientID:     clientID,
